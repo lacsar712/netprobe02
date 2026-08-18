@@ -34,8 +34,13 @@ func DumpSessionLog(path, body string) error {
 	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
-	_, err = w.WriteString(body)
-	return err
+	if _, err := w.WriteString(body); err != nil {
+		return err
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func ExportSessionFile(root, rel string) (string, error) {
