@@ -24,7 +24,7 @@ func WrapModeDenied(op, mode string) error {
 	return fmt.Errorf("%s: mode %s: %w", op, mode, ErrMode)
 }
 
-func DumpSessionLog(path, body string) error {
+func DumpSessionLog(path, body string) (err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil && filepath.Dir(path) != "." {
 		return err
 	}
@@ -32,10 +32,20 @@ func DumpSessionLog(path, body string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		cerr := f.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 	w := bufio.NewWriter(f)
-	_, err = w.WriteString(body)
-	return err
+	if _, err = w.WriteString(body); err != nil {
+		return err
+	}
+	// Flush the bufio buffer so the session log is actually persisted to
+	// disk before the file is closed. Without this the bytes stay in the
+	// writer's in-memory buffer and the file ends up empty or truncated.
+	return w.Flush()
 }
 
 func ExportSessionFile(root, rel string) (string, error) {
